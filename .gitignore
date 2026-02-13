@@ -20,3 +20,39 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+### Python / Data Science / Django ###
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# Notebook
+.ipynb_checkpoints/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Model and local artifacts
+models/*.joblib
+data/processed/*.csv
+reports/figures/*.png
+reports/figures/*.jpg
+
+# Django
+db.sqlite3
+staticfiles/
