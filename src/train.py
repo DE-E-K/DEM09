@@ -13,7 +13,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.tree import DecisionTreeRegressor
 
-from src.config import RANDOM_STATE, TARGET_COL, TRAIN_TEST_SPLIT
+from src.config import MAX_TRAIN_ROWS, RANDOM_STATE, TARGET_COL, TRAIN_TEST_SPLIT
 from src.data_preprocessing import train_test_ready
 
 
@@ -48,7 +48,7 @@ def get_models() -> ModelMap:
     return {
         "LinearRegression": LinearRegression(),
         "Ridge": Ridge(random_state=RANDOM_STATE),
-        "Lasso": Lasso(random_state=RANDOM_STATE),
+        "Lasso": Lasso(random_state=RANDOM_STATE, max_iter=10000),
         "DecisionTree": DecisionTreeRegressor(random_state=RANDOM_STATE),
         "RandomForest": RandomForestRegressor(random_state=RANDOM_STATE),
         "GradientBoosting": GradientBoostingRegressor(random_state=RANDOM_STATE),
@@ -111,7 +111,13 @@ def train_baseline_models(
     return result_df, model_pipelines, predictions
 
 
-def load_split_data(path: str | None = None):
+def load_split_data(path: str | None = None, max_rows: int | None = MAX_TRAIN_ROWS):
     X, y, categorical_cols, numerical_cols = train_test_ready(path)
+
+    if max_rows is not None and len(X) > max_rows:
+        sampled_index = X.sample(n=max_rows, random_state=RANDOM_STATE).index
+        X = X.loc[sampled_index].copy()
+        y = y.loc[sampled_index].copy()
+
     X_train, X_test, y_train, y_test = split_data(X, y)
     return X_train, X_test, y_train, y_test, categorical_cols, numerical_cols

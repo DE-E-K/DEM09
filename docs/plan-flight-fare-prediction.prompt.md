@@ -3,7 +3,7 @@
 This plan builds a reproducible regression project from scratch using `pip + venv`, with both notebook and modular scripts, and assumes you will place the Kaggle CSV in [data/raw/Flight_Price_Dataset_of_Bangladesh.csv](data/raw/Flight_Price_Dataset_of_Bangladesh.csv). It covers the full rubric: problem framing, cleaning, EDA, baseline + advanced models, tuning, interpretation, and stakeholder reporting. Because the repository is currently empty (besides [LICENSE](LICENSE) and [.gitignore](.gitignore)), the first phase creates project structure and reproducibility artifacts. The final phase adds Django-ready prediction integration (as requested) after core ML is complete, so grading-critical work is finished before app wiring.
 
 **Architecture**
-- **Data Layer:** Raw CSV in [data/raw/Flight_Price_Dataset_of_Bangladesh.csv](data/raw/Flight_Price_Dataset_of_Bangladesh.csv), cleaned outputs in [data/processed](data/processed).
+- **Data Layer:** Raw CSV in [data/raw/Flight_Price_Dataset_of_Bangladesh.csv](data\raw\Flight_Price_Dataset_of_Bangladesh.csv), cleaned outputs in [data/processed](data/processed).
 - **Pipeline Layer:** Modular scripts in [src](src) for preprocessing, EDA, training, tuning, interpretation, and orchestration.
 - **Model Layer:** Serialized best model artifact in [models/best_model.joblib](models/best_model.joblib).
 - **Reporting Layer:** KPI tables and plots in [reports](reports) and [reports/figures](reports/figures), with narrative in [notebooks/flight_fare_analysis.ipynb](notebooks/flight_fare_analysis.ipynb).

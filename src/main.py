@@ -5,7 +5,7 @@ import argparse
 import joblib
 import pandas as pd
 
-from src.config import BEST_MODEL_PATH, MODEL_COMPARISON_PATH, RAW_DATA_PATH
+from src.config import BEST_MODEL_PATH, MAX_TRAIN_ROWS, MODEL_COMPARISON_PATH, RAW_DATA_PATH
 from src.data_preprocessing import load_and_preprocess
 from src.eda import run_eda
 from src.interpret import interpret_model, plot_actual_vs_predicted, plot_residuals
@@ -18,7 +18,10 @@ def run_pipeline(data_path: str | None = None):
 
     run_eda(bundle.df)
 
-    X_train, X_test, y_train, y_test, categorical_cols, numerical_cols = load_split_data(data_path)
+    X_train, X_test, y_train, y_test, categorical_cols, numerical_cols = load_split_data(
+        data_path,
+        max_rows=MAX_TRAIN_ROWS,
+    )
 
     baseline_results, baseline_models, baseline_predictions = train_baseline_models(
         X_train,

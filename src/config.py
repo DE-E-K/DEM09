@@ -16,12 +16,13 @@ BEST_MODEL_PATH = MODELS_DIR / "best_model.joblib"
 TARGET_COL = "total_fare"
 TRAIN_TEST_SPLIT = 0.2
 RANDOM_STATE = 42
-CV_FOLDS = 5
+CV_FOLDS = 3
+MAX_TRAIN_ROWS = 5000
 
 NUMERIC_ALIASES = {
-    "base_fare": ["base_fare", "base fare", "baseprice", "base_price", "fare"],
-    "tax_surcharge": ["tax_surcharge", "tax & surcharge", "tax", "taxes", "surcharge"],
-    "total_fare": ["total_fare", "total fare", "total", "price", "ticket_price", "ticket price"],
+    "base_fare": ["base_fare", "base fare", "baseprice", "base_price", "base_fare_bdt"],
+    "tax_surcharge": ["tax_surcharge", "tax & surcharge", "tax", "taxes", "surcharge", "tax_surcharge_bdt"],
+    "total_fare": ["total_fare", "total fare", "total", "price", "ticket_price", "ticket price", "total_fare_bdt"],
 }
 
 CATEGORICAL_ALIASES = {
@@ -30,7 +31,14 @@ CATEGORICAL_ALIASES = {
     "destination": ["destination", "dest", "to", "arrival_city"],
 }
 
-DATE_ALIASES = ["date", "journey_date", "travel_date", "departure_date"]
+DATE_ALIASES = [
+    "date",
+    "journey_date",
+    "travel_date",
+    "departure_date",
+    "departure_date_time",
+    "departure_datetime",
+]
 
 CITY_NORMALIZATION_MAP = {
     "dacca": "dhaka",

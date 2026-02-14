@@ -44,7 +44,10 @@ def clean_columns(df: pd.DataFrame) -> pd.DataFrame:
 def _find_first_existing_column(df: pd.DataFrame, aliases: List[str]) -> Optional[str]:
     alias_set = {normalize_column_name(a) for a in aliases}
     for col in df.columns:
-        if normalize_column_name(col) in alias_set:
+        normalized_col = normalize_column_name(col)
+        if normalized_col in alias_set:
+            return col
+        if any(alias in normalized_col or normalized_col in alias for alias in alias_set):
             return col
     return None
 
@@ -128,7 +131,7 @@ def engineer_date_features(df: pd.DataFrame) -> pd.DataFrame:
     if "date" not in df.columns:
         return df
 
-    df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=False)
     df["month"] = df["date"].dt.month
     df["day"] = df["date"].dt.day
     df["weekday"] = df["date"].dt.day_name()
