@@ -102,8 +102,8 @@ Content-Type: application/json
     "booking_source": "Online Website"
 }
 ```
-### Preview
+### [Preview](reports/preview.mp4)
 <video src="reports/preview.mp4" controls autoplay muted playsinline></video>
 
 ### Option C: Airflow Automation
-Copy `dags/flight_retraining_dag.py` to your Airflow DAGs folder. The DAG is configured to run `@weekly` to retrain the model on new data.
+Copy [dags/flight_retraining_dag.py](dags/flight_retraining_dag.py) to your Airflow DAGs folder. The DAG is configured to run `@weekly` to retrain the model on new data.
