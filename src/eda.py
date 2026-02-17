@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from src.config import FIGURES_DIR, TARGET_COL
+from config import FIGURES_DIR, TARGET_COL
 
 sns.set_theme(style="whitegrid")
 

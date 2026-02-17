@@ -17,7 +17,7 @@ TARGET_COL = "total_fare"
 TRAIN_TEST_SPLIT = 0.2
 RANDOM_STATE = 42
 CV_FOLDS = 3
-MAX_TRAIN_ROWS = 5000
+MAX_TRAIN_ROWS = 30000
 
 NUMERIC_ALIASES = {
     "base_fare": ["base_fare", "base fare", "baseprice", "base_price", "base_fare_bdt"],

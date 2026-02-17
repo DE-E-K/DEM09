@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
-from src.config import FIGURES_DIR
+from config import FIGURES_DIR
 
 
 def _feature_names_from_pipeline(model_pipeline: Pipeline):

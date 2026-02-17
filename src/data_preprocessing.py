@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from src.config import (
+from config import (
     CATEGORICAL_ALIASES,
     CITY_NORMALIZATION_MAP,
     DATE_ALIASES,

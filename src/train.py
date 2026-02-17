@@ -13,8 +13,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.tree import DecisionTreeRegressor
 
-from src.config import MAX_TRAIN_ROWS, RANDOM_STATE, TARGET_COL, TRAIN_TEST_SPLIT
-from src.data_preprocessing import train_test_ready
+from config import MAX_TRAIN_ROWS, RANDOM_STATE, TARGET_COL, TRAIN_TEST_SPLIT
+from data_preprocessing import train_test_ready
 
 
 ModelMap = Dict[str, object]

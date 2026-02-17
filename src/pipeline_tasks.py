@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.main import run_pipeline
+from main import run_pipeline
 
 
 def task_preprocess(data_path: str | None = None):

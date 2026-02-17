@@ -10,8 +10,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.tree import DecisionTreeRegressor
 
-from src.config import CV_FOLDS, RANDOM_STATE
-from src.train import build_preprocessor, evaluate_regression_metrics
+from config import CV_FOLDS, RANDOM_STATE
+from train import build_preprocessor, evaluate_regression_metrics
 
 
 def _search_spaces() -> Dict[str, Tuple[object, Dict[str, List[object]]]]:
