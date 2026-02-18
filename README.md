@@ -175,7 +175,8 @@ streamlit run app.py
 
 Then open the local URL shown in the terminal (usually `http://localhost:8501`).
 overview
-![Streamlit interactive app](reports\streamlitapp.png)
+<img width="904" height="843" alt="image" src="https://github.com/user-attachments/assets/a9e5faec-98e2-499a-86ac-1b634def94f9" />
+
 
 ## Airflow Retraining DAG
 
