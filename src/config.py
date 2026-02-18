@@ -9,9 +9,9 @@ MODELS_DIR = PROJECT_ROOT / "models"
 
 RAW_DATA_FILENAME = "Flight_Price_Dataset_of_Bangladesh.csv"
 RAW_DATA_PATH = DATA_RAW_DIR / RAW_DATA_FILENAME
-PROCESSED_DATA_PATH = DATA_PROCESSED_DIR / "flight_fares_processed.csv"
+PROCESSED_DATA_PATH = DATA_PROCESSED_DIR / "flight_fares_processed_20260218_113134.csv"
 MODEL_COMPARISON_PATH = REPORTS_DIR / "model_comparison.csv"
-BEST_MODEL_PATH = MODELS_DIR / "best_model.joblib"
+BEST_MODEL_PATH = MODELS_DIR / "best_model_20260218_113134.joblib"
 
 TARGET_COL = "total_fare"
 TRAIN_TEST_SPLIT = 0.2

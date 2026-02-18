@@ -2,32 +2,28 @@ from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
 from datetime import datetime, timedelta
+import numpy as np
 from src.config import BEST_MODEL_PATH, PROCESSED_DATA_PATH
 
 app = Flask(__name__)
 
 # Load model and data resources
+# Load model and data resources
 model = None
 df = None
-source_map = {}
-dest_map = {}
-airline_mode_aircraft = {}
-global_mode_aircraft = None
-most_common_seasonality = None
-mean_base_fare = 0
-mean_tax = 0
 
 def load_resources():
-    global model, df, source_map, dest_map, airline_mode_aircraft, global_mode_aircraft, most_common_seasonality, mean_base_fare, mean_tax
+    global model, df, most_common_seasonality
     try:
         model = joblib.load(BEST_MODEL_PATH)
         df = pd.read_csv(PROCESSED_DATA_PATH)
         
-        # Pre-compute lookups and aggregates
-        source_map = df[['source', 'source_name']].drop_duplicates().set_index('source')['source_name'].to_dict()
-        dest_map = df[['destination', 'destination_name']].drop_duplicates().set_index('destination')['destination_name'].to_dict()
+        most_common_seasonality = df['seasonality'].mode()[0]
         
-        airline_mode_aircraft = df.groupby('airline')['aircraft_type'].agg(lambda x: x.mode()[0] if not x.mode().empty else "Unknown").to_dict()
+        print("Model and resources loaded successfully.")
+    except Exception as e:
+        print(f"Error loading resources: {e}")
+        model = None
         global_mode_aircraft = df['aircraft_type'].mode()[0]
         most_common_seasonality = df['seasonality'].mode()[0]
         mean_base_fare = df['base_fare'].mean()
@@ -63,7 +59,7 @@ def predict():
         input_df = pd.DataFrame(input_data)
         
         # Required fields check
-        required_fields = ['airline', 'source', 'destination', 'date', 'stopovers', 'class']
+        required_fields = ['airline', 'source_name', 'destination_name', 'date', 'stopovers', 'class']
         missing = [field for field in required_fields if field not in input_df.columns]
         if missing:
              return jsonify({"error": f"Missing required fields: {missing}"}), 400
@@ -92,39 +88,39 @@ def predict():
         if 'booking_source' not in input_df.columns:
             input_df['booking_source'] = "Online Website" # Default
             
-        if 'duration_(hrs)' not in input_df.columns:
-             input_df['duration_(hrs)'] = 2.0 # Default
+        if 'duration_hrs' not in input_df.columns:
+             input_df['duration_hrs'] = 2.0 # Default
 
         input_df['seasonality'] = most_common_seasonality
         
-        # 3. Lookups
-        input_df['source_name'] = input_df['source'].map(source_map).fillna(input_df['source'])
-        input_df['destination_name'] = input_df['destination'].map(dest_map).fillna(input_df['destination'])
+        # 3. Lookups - Removed as we expect source_name/destination_name directly or they are already present
+        # input_df['source_name'] = input_df['source'].map(source_map).fillna(input_df['source'])
+        # input_df['destination_name'] = input_df['destination'].map(dest_map).fillna(input_df['destination'])
         
-        # 4. Impute Aircraft Type
-        input_df['aircraft_type'] = input_df['airline'].map(airline_mode_aircraft).fillna(global_mode_aircraft)
-
-        # 5. Impute Base Fare & Tax (Leakage mitigation/Imputation)
-        # For API, we'll just use global means or specific lookups if possible. 
-        # Using global means for simplicity and speed in API.
-        if 'base_fare' not in input_df.columns:
-             input_df['base_fare'] = mean_base_fare
-        if 'tax_surcharge' not in input_df.columns:
-             input_df['tax_surcharge'] = mean_tax
+        
+        # 4. Impute Aircraft Type - Removed
+        
+        # 5. Impute Base Fare & Tax - Removed
 
         # 6. Arrival DateTime Dummy
         # We need this column to exist? Check preprocessor. 
         # If preprocessor drops it, fine. If it uses it (e.g. to extract time), we need it.
         # Assuming it might be used or passed through.
         input_df['arrival_date_and_time'] = input_df.apply(
-            lambda x: (x['date'] + timedelta(hours=x['duration_(hrs)'])).strftime("%Y-%m-%d %H:%M:%S"), axis=1
+            lambda x: (x['date'] + timedelta(hours=x['duration_hrs'])).strftime("%Y-%m-%d %H:%M:%S"), axis=1
         )
         
-        prediction = model.predict(input_df)
+        # Predict (Log Transformed)
+        log_prediction = model.predict(input_df)
+        
+        # Inverse Transform (Exp)
+        prediction = np.exp(log_prediction)
         
         return jsonify({"prediction": prediction.tolist()})
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 400
 
 if __name__ == '__main__':
