@@ -64,20 +64,20 @@ DEM09/
 
 ```mermaid
 flowchart TD
-    A[Raw CSV\ndata/raw] --> B[Preprocessing & Feature Engineering\nsrc/data_preprocessing.py]
-    B --> C[EDA & KPI Analysis\nsrc/eda.py]
-    B --> D[Train/Test Split\nsrc/train.py]
-    D --> E[Baseline Training\n7 regressors]
-    E --> F[Hyperparameter Tuning\nsrc/tune.py]
-    F --> G[Model Comparison & Selection\nmain.py]
+    A[Raw CSV data/raw] --> B[Preprocessing & Feature Engineering src/data_preprocessing.py]
+    B --> C[EDA & KPI Analysis src/eda.py]
+    B --> D[Train/Test Split src/train.py]
+    D --> E[Baseline Training 7 regressors]
+    E --> F[Hyperparameter Tuning src/tune.py]
+    F --> G[Model Comparison & Selection main.py]
     G --> H[Best Model Artifact\nmodels/best_model_*.joblib]
-    G --> I[Comparison Report\nreports/model_comparison_*.csv]
-    G --> J[Diagnostics & Interpretation\nsrc/interpret.py]
-    B --> K[Processed Dataset\ndata/processed/*.csv]
-    H --> L[Flask Inference API\napi.py]
-    H --> M[Streamlit App\napp.py]
-    N[Airflow Scheduler\ndags/flight_retraining_dag.py] --> G
-    A --> O[Exploratory Notebook\nnotebooks/flight_fare_ML.ipynb]
+    G --> I[Comparison Report reports/model_comparison_*.csv]
+    G --> J[Diagnostics & Interpretation src/interpret.py]
+    B --> K[Processed Dataset data/processed/*.csv]
+    H --> L[Flask Inference API api.py]
+    H --> M[Streamlit App app.py]
+    N[Airflow Scheduler dags/flight_retraining_dag.py] --> G
+    A --> O[Exploratory Notebook/flight_fare_ML.ipynb]
 ```
 
 ### Stage-by-Stage Responsibilities
