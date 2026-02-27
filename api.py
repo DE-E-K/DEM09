@@ -1,127 +1,131 @@
-from flask import Flask, request, jsonify
+"""api.py
+Flask REST API for flight fare prediction.
+
+Endpoints
+---------
+GET  /health        — liveness check
+POST /predict       — predict fare from JSON payload
+
+Production usage:
+    gunicorn -w 4 api:app
+
+Development:
+    python api.py
+"""
+from __future__ import annotations
+
+import logging
+import sys
+
 import joblib
-import pandas as pd
-from datetime import datetime, timedelta
 import numpy as np
-from src.config import BEST_MODEL_PATH, PROCESSED_DATA_PATH
+import pandas as pd
+from flask import Flask, jsonify, request
+
+from src.config import (
+    BEST_MODEL_PATH,
+    CATEGORICAL_FEATURES,
+    LOGS_DIR,
+    NUMERIC_FEATURES,
+    PROCESSED_DATA_PATH,
+)
+
+_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+_api_log_file = LOGS_DIR / "api.log"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format=_LOG_FORMAT,
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(_api_log_file, encoding="utf-8"),
+    ],
+)
+logger = logging.getLogger(__name__)
+logger.info("API log file → %s", _api_log_file)
 
 app = Flask(__name__)
 
-# Load model and data resources
-# Load model and data resources
+# Model features (must match training exactly)
+# ---------------------------------------------------------------------------
+MODEL_FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES  # 11 columns
+
+REQUIRED_FIELDS = [
+    "airline", "source_name", "destination_name",
+    "class", "seasonality", "departure_period",
+    "weekday", "duration_hrs", "stopovers",
+    "days_before_departure", "month",
+    "booking_source"  # optional — defaults to most common value if absent
+]
+
+# Global resources — initialised to safe defaults before attempted load
+# ---------------------------------------------------------------------------
 model = None
-df = None
+_default_seasonality = "Regular"
+_default_booking_source = "Online Website"
 
-def load_resources():
-    global model, df, most_common_seasonality
-    try:
-        model = joblib.load(BEST_MODEL_PATH)
-        df = pd.read_csv(PROCESSED_DATA_PATH)
-        
-        most_common_seasonality = df['seasonality'].mode()[0]
-        
-        print("Model and resources loaded successfully.")
-    except Exception as e:
-        print(f"Error loading resources: {e}")
-        model = None
-        global_mode_aircraft = df['aircraft_type'].mode()[0]
-        most_common_seasonality = df['seasonality'].mode()[0]
-        mean_base_fare = df['base_fare'].mean()
-        mean_tax = df['tax_surcharge'].mean()
-        
-        print("Model and resources loaded successfully.")
-    except Exception as e:
-        print(f"Error loading resources: {e}")
-        model = None
+try:
+    model = joblib.load(BEST_MODEL_PATH)
+    _ref_df = pd.read_csv(PROCESSED_DATA_PATH)
+    if "seasonality" in _ref_df.columns:
+        _default_seasonality = str(_ref_df["seasonality"].mode().iloc[0])
+    if "booking_source" in _ref_df.columns:
+        _default_booking_source = str(_ref_df["booking_source"].mode().iloc[0])
+    logger.info("Model loaded from %s", BEST_MODEL_PATH)
+except Exception as exc:
+    logger.error("Failed to load model: %s — /predict will return 503", exc)
 
-load_resources()
 
-@app.route('/health', methods=['GET'])
+# Routes
+# ---------------------------------------------------------------------------
+
+@app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "model_loaded": model is not None})
 
-@app.route('/predict', methods=['POST'])
+
+@app.route("/predict", methods=["POST"])
 def predict():
-    if not model:
-        return jsonify({"error": "Model not loaded"}), 500
-    
+    if model is None:
+        return jsonify({"error": "Model not loaded. Run the training pipeline first."}), 503
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "No JSON body provided."}), 400
+
+    records = [data] if isinstance(data, dict) else data
+    input_df = pd.DataFrame(records)
+
+    # -- Required field validation ------------------------------------
+    missing = [f for f in REQUIRED_FIELDS if f not in input_df.columns]
+    if missing:
+        return jsonify({"error": f"Missing required fields: {missing}"}), 400
+
+    # -- Default optional fields -------------------------------------
+    if "booking_source" not in input_df.columns:
+        input_df["booking_source"] = _default_booking_source
+
+    # -- Coerce numeric columns ---------------------------------------
+    for col in ["duration_hrs", "stopovers", "days_before_departure", "month"]:
+        if col in input_df.columns:
+            input_df[col] = pd.to_numeric(input_df[col], errors="coerce").fillna(0)
+
+    # -- Select only the model features (enforce column order) --------
+    input_df = input_df[MODEL_FEATURES]
+
     try:
-        data = request.get_json()
-        if not data:
-             return jsonify({"error": "No input data provided"}), 400
+        log_pred = model.predict(input_df)
+        # Correct inverse of np.log1p used during training
+        fares_bdt = np.expm1(log_pred).tolist()
+        return jsonify({"prediction_bdt": fares_bdt})
+    except Exception as exc:
+        logger.exception("Prediction error")
+        return jsonify({"error": str(exc)}), 400
 
-        # Expecting a list of dicts or a single dict
-        if isinstance(data, dict):
-            input_data = [data]
-        else:
-            input_data = data
-            
-        input_df = pd.DataFrame(input_data)
-        
-        # Required fields check
-        required_fields = ['airline', 'source_name', 'destination_name', 'date', 'stopovers', 'class']
-        missing = [field for field in required_fields if field not in input_df.columns]
-        if missing:
-             return jsonify({"error": f"Missing required fields: {missing}"}), 400
 
-        # 1. Date Features
-        input_df['date'] = pd.to_datetime(input_df['date'], dayfirst=False)
-        input_df['month'] = input_df['date'].dt.month
-        input_df['day'] = input_df['date'].dt.day
-        input_df['weekday'] = input_df['date'].dt.day_name()
-        
-        # Days before departure (default to 7 if not provided or negative)
-        if 'days_before_departure' not in input_df.columns:
-             input_df['days_before_departure'] = (input_df['date'] - pd.Timestamp.now()).dt.days
-             input_df['days_before_departure'] = input_df['days_before_departure'].apply(lambda x: x if x >= 0 else 7)
+# Entry point (development only — use gunicorn in production)
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    app.run(debug=False, port=5000)
 
-        # Season mapping
-        season_map = {
-            12: "Winter", 1: "Winter", 2: "Winter",
-            3: "Summer", 4: "Summer", 5: "Summer",
-            6: "Monsoon", 7: "Monsoon", 8: "Monsoon", 9: "Monsoon",
-            10: "Autumn", 11: "Autumn",
-        }
-        input_df['season'] = input_df['month'].map(season_map)
-        
-        # 2. Impute Defaults for Missing Optional Fields
-        if 'booking_source' not in input_df.columns:
-            input_df['booking_source'] = "Online Website" # Default
-            
-        if 'duration_hrs' not in input_df.columns:
-             input_df['duration_hrs'] = 2.0 # Default
-
-        input_df['seasonality'] = most_common_seasonality
-        
-        # 3. Lookups - Removed as we expect source_name/destination_name directly or they are already present
-        # input_df['source_name'] = input_df['source'].map(source_map).fillna(input_df['source'])
-        # input_df['destination_name'] = input_df['destination'].map(dest_map).fillna(input_df['destination'])
-        
-        
-        # 4. Impute Aircraft Type - Removed
-        
-        # 5. Impute Base Fare & Tax - Removed
-
-        # 6. Arrival DateTime Dummy
-        # We need this column to exist? Check preprocessor. 
-        # If preprocessor drops it, fine. If it uses it (e.g. to extract time), we need it.
-        # Assuming it might be used or passed through.
-        input_df['arrival_date_and_time'] = input_df.apply(
-            lambda x: (x['date'] + timedelta(hours=x['duration_hrs'])).strftime("%Y-%m-%d %H:%M:%S"), axis=1
-        )
-        
-        # Predict (Log Transformed)
-        log_prediction = model.predict(input_df)
-        
-        # Inverse Transform (Exp)
-        prediction = np.exp(log_prediction)
-        
-        return jsonify({"prediction": prediction.tolist()})
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 400
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)

@@ -7,12 +7,13 @@ import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
-from config import FIGURES_DIR
+from .config import FIGURES_DIR
 
 
 def _feature_names_from_pipeline(model_pipeline: Pipeline):
-    preprocessor = model_pipeline.named_steps["preprocessor"]
-    return preprocessor.get_feature_names_out()
+    # Pipeline step is named 'prep' (not 'preprocessor')
+    prep_step = model_pipeline.named_steps["prep"]
+    return prep_step.get_feature_names_out()
 
 
 def plot_actual_vs_predicted(y_true: pd.Series, y_pred: np.ndarray, file_name: str = "predicted_vs_actual.png"):
@@ -92,7 +93,9 @@ def plot_feature_importance(importance_df: pd.DataFrame, file_name: str = "featu
 def interpret_model(model_name: str, model_pipeline: Pipeline) -> Dict[str, pd.DataFrame]:
     outputs: Dict[str, pd.DataFrame] = {}
 
-    if model_name in {"LinearRegression", "Ridge", "Lasso"}:
+    # Strip _Tuned suffix for matching (e.g. 'Ridge_Tuned' → 'Ridge')
+    base_name = model_name.replace("_Tuned", "")
+    if base_name in {"LinearRegression", "Ridge", "Lasso", "HuberRegressor"}:
         coef_df = extract_linear_coefficients(model_pipeline)
         plot_feature_importance(coef_df, file_name=f"{model_name.lower()}_coefficients.png")
         outputs["coefficients"] = coef_df

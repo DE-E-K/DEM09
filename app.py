@@ -1,101 +1,114 @@
-import streamlit as st
-import pandas as pd
-import joblib
-from datetime import datetime, timedelta
 import numpy as np
-from src.config import BEST_MODEL_PATH, PROCESSED_DATA_PATH
+import joblib
+import pandas as pd
+import streamlit as st
+from datetime import datetime
 
-# Load the model and data
+from src.config import (
+    BEST_MODEL_PATH,
+    CATEGORICAL_FEATURES,
+    NUMERIC_FEATURES,
+    PROCESSED_DATA_PATH,
+)
+
+# Resource loading — uses dynamic BEST_MODEL_PATH from config
+# ---------------------------------------------------------------------------
 @st.cache_resource
 def load_resources():
     model = joblib.load(BEST_MODEL_PATH)
-    # Load processed data to get unique values via value_counts for better ordering
     df = pd.read_csv(PROCESSED_DATA_PATH)
     return model, df
+
 
 try:
     model, df = load_resources()
 except FileNotFoundError:
-    st.error("Model or processed data not found. Please run the pipeline first.")
+    st.error("Model or processed data not found. Run `python -m src.main --run-all` first.")
     st.stop()
 
-st.title("Flight Fare Prediction App")
-st.write("Enter flight details to predict the total fare.")
 
-# Helper to get unique sorted options
-def get_options(col):
-    return sorted(df[col].dropna().unique().tolist())
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+MODEL_FEATURES = CATEGORICAL_FEATURES + NUMERIC_FEATURES   # 11 columns
 
-# Input form
+
+def get_options(col: str) -> list:
+    if col not in df.columns:
+        return []
+    vals = df[col].dropna().unique().tolist()
+    try:
+        return sorted(vals)
+    except TypeError:
+        return sorted(str(v) for v in vals)
+
+
+# ---------------------------------------------------------------------------
+# UI
+# ---------------------------------------------------------------------------
+st.title("Flight Fare Prediction")
+st.write("Enter flight details to estimate the total fare (BDT).")
+
 with st.form("prediction_form"):
     col1, col2 = st.columns(2)
-    
+
     with col1:
-        airline = st.selectbox("Airline", get_options('airline'))
-        # Use source_name directly
-        source = st.selectbox("Source", get_options('source_name'))
-        stopovers = st.selectbox("Stopovers", get_options('stopovers'))
-        flight_class = st.selectbox("Class", get_options('class'))
-        
+        airline = st.selectbox("Airline", get_options("airline"))
+        source = st.selectbox("Source City", get_options("source_name"))
+        destination = st.selectbox("Destination City", get_options("destination_name"))
+        flight_class = st.selectbox("Class", get_options("class"))
+        booking_source = st.selectbox(
+            "Booking Source",
+            get_options("booking_source") or ["Online Website", "Travel Agent", "Airline Direct", "Mobile App"],
+        )
+        stopovers = st.number_input(
+            "Stopovers", min_value=0, max_value=5,
+            value=int(df["stopovers"].median()) if "stopovers" in df.columns else 0,
+            step=1,
+        )
+
     with col2:
-        # Use destination_name directly
-        destination = st.selectbox("Destination", get_options('destination_name'))
-        date = st.date_input("Date of Journey", datetime.today())
-        
+        journey_date = st.date_input("Date of Journey", datetime.today())
         departure_period = st.selectbox("Departure Period", ["Morning", "Afternoon", "Evening", "Night"])
-        seasonality = st.selectbox("Seasonality (Optional)", ["Regular", "Winter Holidays", "Eid", "Hajj"])
-        
-        # Optional: Allow user to specify duration or imply it
-        duration_hrs = st.number_input("Duration (Hours)", min_value=0.5, max_value=30.0, value=2.0, step=0.5)
+        seasonality = st.selectbox("Seasonality", get_options("seasonality") or ["Regular", "Eid", "Winter Holidays", "Hajj"])
+        duration_hrs = st.number_input("Flight Duration (hours)", min_value=0.5, max_value=30.0, value=2.0, step=0.5)
+        days_before = st.number_input(
+            "Days Booked in Advance", min_value=0, max_value=365, value=14, step=1,
+        )
 
     submitted = st.form_submit_button("Predict Fare")
 
+
 if submitted:
-    # 1. Basic User Inputs
+    journey_dt = pd.Timestamp(journey_date)
+
+    # Build input with exactly the MODEL_FEATURES columns
     input_dict = {
-        'airline': airline,
-        'source_name': source, # Mapped to source_name
-        'destination_name': destination, # Mapped to destination_name
-        'stopovers': stopovers,
-        'class': flight_class,
-        'departure_period': departure_period,
-        'seasonality': seasonality,
-        'duration_hrs': duration_hrs,
-        'date': pd.to_datetime(date)
+        "airline": airline,
+        "source_name": source,
+        "destination_name": destination,
+        "class": flight_class,
+        "seasonality": seasonality,
+        "weekday": journey_dt.day_name(),
+        "departure_period": departure_period,
+        "booking_source": booking_source,
+        "duration_hrs": float(duration_hrs),
+        "stopovers": int(stopovers),
+        "days_before_departure": int(days_before),
+        "month": journey_dt.month,
     }
-    
-    input_df = pd.DataFrame([input_dict])
 
-    # 2. Date Features
-    input_df['month'] = input_df['date'].dt.month
-    input_df['day'] = input_df['date'].dt.day
-    input_df['weekday'] = input_df['date'].dt.day_name()
-    input_df['days_before_departure'] = (input_df['date'] - pd.Timestamp.now()).dt.days.clip(lower=0) 
-    # For simplicity, assuming booking is today. 
-    # Or we could ask 'Days in advance' instead of booking date relative to now. 
-    # Let's derive it or default to a reasonable median if negative.
-    input_df['days_before_departure'] = input_df['days_before_departure'].apply(lambda x: x if x >= 0 else 7) 
+    input_df = pd.DataFrame([input_dict])[MODEL_FEATURES]   # enforce column order
 
-    # Season mapping
-    season_map = {
-        12: "Winter", 1: "Winter", 2: "Winter",
-        3: "Summer", 4: "Summer", 5: "Summer",
-        6: "Monsoon", 7: "Monsoon", 8: "Monsoon", 9: "Monsoon",
-        10: "Autumn", 11: "Autumn",
-    }
-    input_df['season'] = input_df['month'].map(season_map)
-    
     try:
-        # Predict (Log Transformed)
-        log_prediction = model.predict(input_df)
-        
-        # Inverse Transform (Exp)
-        prediction = np.exp(log_prediction)
-        
-        st.success(f"Predicted Fare: BDT {prediction[0]:,.2f}")
-        
-        with st.expander("Show Details"):
-            st.json(input_df.iloc[0].astype(str).to_dict())
-            
-    except Exception as e:
-        st.error(f"Error making prediction: {e}")
+        log_pred = model.predict(input_df)
+        # Correct inverse of np.log1p used during training
+        fare_bdt = float(np.expm1(log_pred[0]))
+        st.success(f"**Estimated Fare: BDT {fare_bdt:,.2f}**")
+
+        with st.expander("Show Input Details"):
+            st.dataframe(input_df.T.rename(columns={0: "value"}))
+
+    except Exception as exc:
+        st.error(f"Prediction failed: {exc}")
+
