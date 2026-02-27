@@ -3,5 +3,6 @@
 data/
 logs/
 models/
-reports/
+!reports/model*
+!data/raw/Flight_Price_Dataset_of_Bangladesh.csv
 
